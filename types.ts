@@ -6,8 +6,13 @@ export interface SyllabusTopic {
   subPoints: string[];
 }
 
+export interface TopicScore {
+  topicId: string;
+  score: number; // 0-100 的覆盖深度评分
+}
+
 export interface AnalysisResult {
-  coveredTopics: string[]; // IDs of SyllabusTopic
+  topicScores: TopicScore[]; // 各单元的覆盖明细
   missingTopics: {
     topicId: string;
     reason: string;

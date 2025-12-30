@@ -1,118 +1,198 @@
 
 import React from 'react';
-import { AnalysisResult, SyllabusTopic } from '../types';
+import { AnalysisResult } from '../types';
 import { SYLLABUS } from '../constants';
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
 
 interface AnalysisDashboardProps {
   result: AnalysisResult;
 }
 
 const AnalysisDashboard: React.FC<AnalysisDashboardProps> = ({ result }) => {
-  const chartData = SYLLABUS.map(unit => ({
-    subject: unit.title,
-    covered: result.coveredTopics.includes(unit.id) ? 100 : 0,
-    fullMark: 100
-  }));
+  // 构建雷达图数据，确保所有单元都有数据点
+  const chartData = SYLLABUS.map(unit => {
+    const scoreObj = result.topicScores.find(s => s.topicId === unit.id);
+    return {
+      subject: unit.title,
+      score: scoreObj ? scoreObj.score : 0,
+      fullMark: 100
+    };
+  });
 
   const getTopicTitle = (id: string) => SYLLABUS.find(t => t.id === id)?.title || id;
 
+  // 根据得分计算勋章样式
+  const getMedalConfig = (score: number) => {
+    if (score >= 90) return { icon: 'fa-award', color: 'text-yellow-400', label: '金章' };
+    if (score >= 80) return { icon: 'fa-award', color: 'text-slate-300', label: '银章' };
+    if (score >= 60) return { icon: 'fa-award', color: 'text-orange-400', label: '铜章' };
+    return { icon: 'fa-certificate', color: 'text-slate-200', label: '基础' };
+  };
+
+  const medal = getMedalConfig(result.overallScore);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Summary Card */}
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
-          <div className="relative mb-4">
-             <svg className="w-24 h-24">
-                <circle className="text-slate-100" strokeWidth="6" stroke="currentColor" fill="transparent" r="44" cx="48" cy="48" />
-                <circle className="text-blue-600" strokeWidth="6" strokeDasharray={276} strokeDashoffset={276 - (276 * result.overallScore / 100)} strokeLinecap="round" stroke="currentColor" fill="transparent" r="44" cx="48" cy="48" />
-             </svg>
-             <span className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-2xl font-bold text-slate-800">{result.overallScore}</span>
+        {/* 综合得分卡片 */}
+        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center relative overflow-hidden min-h-[340px]">
+          {/* 动态勋章显示 */}
+          <div className={`absolute top-4 right-4 flex flex-col items-center transition-all duration-1000 transform scale-110`}>
+            <i className={`fas ${medal.icon} ${medal.color} text-4xl drop-shadow-sm`}></i>
+            <span className={`text-[10px] font-black uppercase mt-1 ${medal.color} opacity-80`}>{medal.label}</span>
           </div>
-          <h3 className="text-lg font-bold text-slate-800">资料覆盖度评分</h3>
-          <p className="text-sm text-slate-500 mt-2">基于苏教版大纲标准的综合练习权重评估</p>
-          <div className="mt-4 grid grid-cols-2 gap-4 w-full">
-            <div className="bg-blue-50 p-3 rounded-xl">
-              <p className="text-xs text-blue-600 font-medium">识别题目</p>
-              <p className="text-xl font-bold text-blue-800">{result.questionCount}道</p>
+          
+          <div className="relative z-10 flex flex-col items-center justify-center py-4">
+             <div className="flex flex-col items-center">
+                <span className="text-7xl font-black text-slate-800 tracking-tighter leading-none">
+                  {result.overallScore}
+                </span>
+                <div className="flex items-center gap-2 mt-2">
+                  <div className="h-px w-8 bg-slate-200"></div>
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-[0.2em]">Score</span>
+                  <div className="h-px w-8 bg-slate-200"></div>
+                </div>
+             </div>
+          </div>
+          
+          <div className="mt-4 mb-6 text-center">
+            <h3 className="text-lg font-bold text-slate-800">综合覆盖评分</h3>
+            <p className="text-xs text-slate-400 mt-1 leading-relaxed">对标苏教版 4A 数学大纲标准</p>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-3 w-full">
+            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 transition-all hover:bg-white hover:shadow-sm">
+              <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">识别题目</p>
+              <p className="text-lg font-black text-blue-600">{result.questionCount}</p>
             </div>
-            <div className="bg-green-50 p-3 rounded-xl">
-              <p className="text-xs text-green-600 font-medium">覆盖单元</p>
-              <p className="text-xl font-bold text-green-800">{result.coveredTopics.length}/{SYLLABUS.length}</p>
+            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 transition-all hover:bg-white hover:shadow-sm">
+              <p className="text-[10px] text-slate-400 font-bold uppercase mb-1">达标单元</p>
+              <p className="text-lg font-black text-green-600">
+                {result.topicScores.filter(s => s.score >= 60).length}/{SYLLABUS.length}
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Chart Card */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <h3 className="text-md font-bold text-slate-800 mb-4 flex items-center gap-2">
-            <i className="fas fa-chart-pie text-blue-500"></i>
-            大纲知识点覆盖雷达图
-          </h3>
-          <div className="h-64 w-full">
+        {/* 知识点覆盖雷达图 */}
+        <div className="lg:col-span-2 bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-md font-bold text-slate-800 flex items-center gap-2">
+              <i className="fas fa-spider text-blue-500"></i>
+              单元覆盖权重雷达
+            </h3>
+            <div className="flex gap-4">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                <span className="text-[10px] text-slate-500 font-bold">考点深度</span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="h-[280px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <RadarChart cx="50%" cy="50%" outerRadius="80%" data={chartData}>
-                <PolarGrid />
-                <PolarAngleAxis dataKey="subject" tick={{ fontSize: 10, fill: '#64748b' }} />
-                <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} />
-                <Radar name="已覆盖" dataKey="covered" stroke="#2563eb" fill="#3b82f6" fillOpacity={0.4} />
+              <RadarChart cx="50%" cy="50%" outerRadius="75%" data={chartData}>
+                <PolarGrid stroke="#e2e8f0" />
+                <PolarAngleAxis 
+                  dataKey="subject" 
+                  tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }} 
+                />
+                <PolarRadiusAxis 
+                  angle={90} 
+                  domain={[0, 100]} 
+                  tick={false} 
+                  axisLine={false} 
+                />
+                <Radar 
+                  name="覆盖评分" 
+                  dataKey="score" 
+                  stroke="#2563eb" 
+                  strokeWidth={3}
+                  fill="#3b82f6" 
+                  fillOpacity={0.15} 
+                  animationDuration={1500}
+                />
               </RadarChart>
             </ResponsiveContainer>
           </div>
         </div>
       </div>
 
-      {/* Analysis Details */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <h3 className="text-md font-bold text-red-600 mb-4 flex items-center gap-2">
-            <i className="fas fa-exclamation-triangle"></i>
-            知识点遗漏清单
-          </h3>
+        {/* 遗漏清单 */}
+        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-md font-bold text-red-600 flex items-center gap-2">
+              <i className="fas fa-layer-group"></i>
+              待补充知识点
+            </h3>
+            <span className="px-2 py-1 bg-red-100 text-red-600 text-[10px] font-bold rounded-lg uppercase">
+              Priority: High
+            </span>
+          </div>
+          
           <div className="space-y-4">
             {result.missingTopics.length > 0 ? (
               result.missingTopics.map((item, idx) => (
-                <div key={idx} className="p-4 rounded-xl border border-red-50 border-l-4 border-l-red-500 bg-red-50/30">
-                  <h4 className="font-bold text-slate-800 text-sm mb-1">{getTopicTitle(item.topicId)}</h4>
-                  <p className="text-xs text-slate-600 mb-2 leading-relaxed"><span className="font-medium">原因分析：</span>{item.reason}</p>
-                  <div className="flex items-start gap-2 text-xs bg-white p-2 rounded border border-red-100">
-                    <i className="fas fa-lightbulb text-yellow-500 mt-0.5"></i>
-                    <p className="text-slate-700 italic">{item.suggestion}</p>
+                <div key={idx} className="p-5 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-white hover:shadow-md transition-all duration-300">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
+                    <h4 className="font-bold text-slate-800 text-sm">{getTopicTitle(item.topicId)}</h4>
+                  </div>
+                  <p className="text-xs text-slate-500 mb-3 leading-relaxed">
+                    <span className="font-bold text-slate-400 mr-1 italic">Reason:</span>
+                    {item.reason}
+                  </p>
+                  <div className="flex items-start gap-3 bg-white p-3 rounded-xl border border-red-50 shadow-sm">
+                    <div className="bg-amber-100 p-1.5 rounded-lg">
+                      <i className="fas fa-lightbulb text-amber-600 text-[10px]"></i>
+                    </div>
+                    <p className="text-[11px] text-slate-700 font-medium leading-relaxed italic">{item.suggestion}</p>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="text-center py-10">
-                <i className="fas fa-check-circle text-green-500 text-3xl mb-2"></i>
-                <p className="text-slate-500">太棒了！该套题完美覆盖了全册重点。</p>
+              <div className="text-center py-16 bg-green-50/30 rounded-3xl border border-dashed border-green-100">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <i className="fas fa-check text-green-600 text-2xl"></i>
+                </div>
+                <p className="text-slate-600 font-bold">知识点覆盖完整</p>
+                <p className="text-[10px] text-slate-400 mt-1">当前资料已完美闭环所有核心考点</p>
               </div>
             )}
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <h3 className="text-md font-bold text-slate-800 mb-4 flex items-center gap-2">
-            <i className="fas fa-robot text-purple-500"></i>
-            AI 专家点评
+        {/* AI 点评与复习视图 */}
+        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+          <h3 className="text-md font-bold text-slate-800 mb-6 flex items-center gap-2">
+            <i className="fas fa-brain text-indigo-500"></i>
+            教研员深度点评
           </h3>
-          <div className="prose prose-sm max-w-none">
-             <div className="bg-slate-50 p-4 rounded-xl text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">
-               {result.aiCommentary}
-             </div>
+          <div className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100 text-slate-700 text-sm leading-relaxed whitespace-pre-wrap italic relative">
+             <i className="fas fa-quote-left absolute -top-3 -left-1 text-2xl text-indigo-200"></i>
+             {result.aiCommentary}
           </div>
-          <div className="mt-6">
-            <h4 className="text-sm font-bold text-slate-800 mb-3">复习优先级建议</h4>
+          
+          <div className="mt-8">
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">全册考点对标详情</h4>
             <div className="space-y-2">
               {SYLLABUS.map(topic => {
-                const isMissing = result.missingTopics.some(m => m.topicId === topic.id);
+                const topicScore = result.topicScores.find(s => s.topicId === topic.id)?.score || 0;
                 return (
-                  <div key={topic.id} className="flex items-center justify-between text-xs p-2 rounded hover:bg-slate-50">
-                    <span className="text-slate-700 font-medium">{topic.title}</span>
-                    {isMissing ? (
-                      <span className="px-2 py-0.5 bg-red-100 text-red-600 rounded-full font-bold">待补充</span>
-                    ) : (
-                      <span className="px-2 py-0.5 bg-green-100 text-green-600 rounded-full font-bold">已覆盖</span>
-                    )}
+                  <div key={topic.id} className="group p-3 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs text-slate-700 font-bold">{topic.title}</span>
+                      <span className={`text-[10px] font-black ${topicScore >= 80 ? 'text-green-600' : topicScore >= 50 ? 'text-amber-500' : 'text-red-500'}`}>
+                        {topicScore}%
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full transition-all duration-1000 ${topicScore >= 80 ? 'bg-green-500' : topicScore >= 50 ? 'bg-amber-400' : 'bg-red-400'}`}
+                        style={{ width: `${topicScore}%` }}
+                      ></div>
+                    </div>
                   </div>
                 );
               })}
