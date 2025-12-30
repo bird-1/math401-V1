@@ -4,23 +4,10 @@ import { ANALYSIS_PROMPT, SYLLABUS } from "../constants";
 import { AnalysisResult, FileData } from "../types";
 
 export class GeminiService {
-  private ai: GoogleGenAI;
-
-  constructor() {
-    // 优先从环境变量获取，这是标准生产规范
-    // 如果您在本地下载运行，请确保您的构建工具（如 Vite/Webpack）已注入此变量
-    // 或者临时将 process.env.API_KEY 替换为您的密钥字符串
-    const apiKey = process.env.API_KEY;
-
-    if (!apiKey || apiKey === 'undefined' || apiKey === '') {
-      console.error("【系统警告】未检测到有效的 API_KEY 环境配置。请检查 .env 文件或在 shell 中设置环境变量。");
-      // 这里的兜底是为了防止应用完全崩溃，但 API 调用仍会失败，直到密钥被正确注入
-    }
-
-    this.ai = new GoogleGenAI({ apiKey: apiKey || "" });
-  }
-
   async analyzeQuestions(files: FileData[]): Promise<AnalysisResult> {
+    // 实例化 AI 客户端，API_KEY 由 index.html 中的脚本或环境变量注入
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    
     const syllabusStr = JSON.stringify(SYLLABUS, null, 2);
     const prompt = ANALYSIS_PROMPT(syllabusStr);
 
@@ -31,8 +18,8 @@ export class GeminiService {
       }
     }));
 
-    // 使用旗舰级模型 gemini-3-pro-preview
-    const response = await this.ai.models.generateContent({
+    // 使用高精度模型 gemini-3-pro-preview 进行教研级分析
+    const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: {
         parts: [...parts, { text: prompt }]
@@ -45,7 +32,7 @@ export class GeminiService {
             coveredTopics: { 
               type: Type.ARRAY, 
               items: { type: Type.STRING },
-              description: "识别出的已覆盖单元 ID 列表"
+              description: "覆盖的单元ID"
             },
             missingTopics: {
               type: Type.ARRAY,
@@ -70,14 +57,14 @@ export class GeminiService {
 
     const text = response.text;
     if (!text) {
-      throw new Error("AI 分析未能生成有效内容，请检查题目清晰度。");
+      throw new Error("AI 未返回分析结果，请确认图片是否包含清晰的数学题目。");
     }
 
     try {
       return JSON.parse(text);
     } catch (e) {
-      console.error("JSON 解析失败，原始文本:", text);
-      throw new Error("分析报告生成格式错误，请尝试重新运行。");
+      console.error("解析 JSON 失败:", text);
+      throw new Error("报告格式解析异常，请重新尝试分析。");
     }
   }
 }
