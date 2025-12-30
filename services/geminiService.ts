@@ -7,14 +7,16 @@ export class GeminiService {
   private ai: GoogleGenAI;
 
   constructor() {
-    // 密钥严格从环境变量获取。
-    // 本地下载运行时，请确保通过构建工具（如 Vite/Webpack）注入，或临时在此处替换为字符串。
+    // 优先从环境变量获取，这是标准生产规范
+    // 如果您在本地下载运行，请确保您的构建工具（如 Vite/Webpack）已注入此变量
+    // 或者临时将 process.env.API_KEY 替换为您的密钥字符串
     const apiKey = process.env.API_KEY;
-    
+
     if (!apiKey || apiKey === 'undefined' || apiKey === '') {
-      console.error("Gemini API Key 未配置！请在环境变量中设置 API_KEY。");
+      console.error("【系统警告】未检测到有效的 API_KEY 环境配置。请检查 .env 文件或在 shell 中设置环境变量。");
+      // 这里的兜底是为了防止应用完全崩溃，但 API 调用仍会失败，直到密钥被正确注入
     }
-    
+
     this.ai = new GoogleGenAI({ apiKey: apiKey || "" });
   }
 
@@ -29,7 +31,7 @@ export class GeminiService {
       }
     }));
 
-    // 使用旗舰级模型 gemini-3-pro-preview 处理复杂的数学教研分析
+    // 使用旗舰级模型 gemini-3-pro-preview
     const response = await this.ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: {
@@ -43,23 +45,23 @@ export class GeminiService {
             coveredTopics: { 
               type: Type.ARRAY, 
               items: { type: Type.STRING },
-              description: "识别出的已覆盖单元 ID 列表，例如 ['unit1', 'unit2']"
+              description: "识别出的已覆盖单元 ID 列表"
             },
             missingTopics: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  topicId: { type: Type.STRING, description: "遗漏的单元 ID" },
-                  reason: { type: Type.STRING, description: "判定遗漏的具体教研理由" },
-                  suggestion: { type: Type.STRING, description: "针对该遗漏点的专业补题或复习建议" }
+                  topicId: { type: Type.STRING },
+                  reason: { type: Type.STRING },
+                  suggestion: { type: Type.STRING }
                 },
                 required: ["topicId", "reason", "suggestion"]
               }
             },
-            overallScore: { type: Type.NUMBER, description: "基于大纲覆盖度的综合评分 (0-100)" },
-            aiCommentary: { type: Type.STRING, description: "资深教研员视角的整体分析点评" },
-            questionCount: { type: Type.NUMBER, description: "AI 识别出的题目总数" }
+            overallScore: { type: Type.NUMBER },
+            aiCommentary: { type: Type.STRING },
+            questionCount: { type: Type.NUMBER }
           },
           required: ["coveredTopics", "missingTopics", "overallScore", "aiCommentary", "questionCount"]
         }
@@ -68,14 +70,14 @@ export class GeminiService {
 
     const text = response.text;
     if (!text) {
-      throw new Error("AI 未能返回有效分析，请检查上传的题目是否清晰可见。");
+      throw new Error("AI 分析未能生成有效内容，请检查题目清晰度。");
     }
 
     try {
       return JSON.parse(text);
     } catch (e) {
-      console.error("JSON 解析失败:", text);
-      throw new Error("分析报告格式解析异常，请尝试重新生成。");
+      console.error("JSON 解析失败，原始文本:", text);
+      throw new Error("分析报告生成格式错误，请尝试重新运行。");
     }
   }
 }
