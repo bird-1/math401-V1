@@ -33,15 +33,17 @@ const App: React.FC = () => {
       const result = await gemini.analyzeQuestions(files);
       setAnalysisResult(result);
     } catch (err: any) {
-      console.error("Detailed Error:", err);
+      console.error("App Error Boundary:", err);
       
-      let msg = '分析失败：连接 AI 服务时出现问题。';
+      let msg = err.message || '分析失败：未知错误。';
       
-      // 识别本地运行常见的 API Key 注入失败问题
-      if (err.message?.includes('API key not valid') || err.status === 400) {
-        msg = '本地运行错误：未检测到有效的 API Key。请在本地环境中配置环境变量 API_KEY，或检查 geminiService.ts 中的配置。';
-      } else if (err.message) {
-        msg = `错误详情: ${err.message}`;
+      // 捕获常见的 API 错误
+      if (msg.includes('API key not valid')) {
+        msg = 'API Key 无效。请去 Google AI Studio 确认您的 Key 是否正确且已启用 Gemini 3 系列权限。';
+      } else if (msg.includes('403')) {
+        msg = '权限拒绝 (403)。请检查您的 API Key 所在的 GCP 项目是否已启用 Generative Language API。';
+      } else if (msg.includes('404')) {
+        msg = '模型未找到 (404)。当前 API Key 可能尚未获得访问 gemini-3-pro-preview 的权限。';
       }
       
       setError(msg);
@@ -91,14 +93,6 @@ const App: React.FC = () => {
                   </>
                 )}
               </button>
-              {error && (
-                <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-lg">
-                  <p className="text-[10px] text-red-600 leading-relaxed">
-                    <i className="fas fa-tools mr-1"></i>
-                    本地修复指引：请确保您的 API Key 已正确设置。
-                  </p>
-                </div>
-              )}
             </div>
 
             <div className="bg-slate-900 rounded-2xl p-6 text-white relative overflow-hidden shadow-xl">
@@ -115,12 +109,15 @@ const App: React.FC = () => {
           {/* 右侧主展示区 */}
           <div className="lg:col-span-8">
             {error && (
-              <div className="bg-red-50 border-2 border-red-100 text-red-700 px-6 py-4 rounded-2xl mb-6 flex flex-col gap-2">
+              <div className="bg-red-50 border-2 border-red-100 text-red-700 px-6 py-5 rounded-2xl mb-6 flex flex-col gap-3">
                 <div className="flex items-center gap-2 font-bold text-red-800">
                   <i className="fas fa-exclamation-triangle"></i>
-                  <span>本地配置异常</span>
+                  <span>分析中断</span>
                 </div>
-                <p className="text-sm">{error}</p>
+                <p className="text-sm leading-relaxed">{error}</p>
+                <div className="text-[10px] bg-white/50 p-2 rounded-lg text-red-500 font-mono">
+                  调试建议：请检查浏览器控制台 (F12) 的 Console 面板获取原始错误堆栈。
+                </div>
               </div>
             )}
 
